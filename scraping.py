@@ -29,7 +29,8 @@ def scrape_all():
         "news_paragraph": news_paragraph,
         "featured_image": featured_image(browser),
         "facts": mars_facts(),
-        "last_modified": dt.datetime.now()
+        "last_modified": dt.datetime.now(),
+        "hemispheres": mars_hemispheres(browser)
     }
 
 
@@ -109,13 +110,13 @@ def featured_image(browser):
 
 def mars_facts():
 
-    try:
+    # try:
 
-        # Use read_html to scrape facts table into a df
-        df = pd.read_html('https://galaxyfacts-mars.com')[0]
+    # Use read_html to scrape facts table into a df
+    df = pd.read_html('https://galaxyfacts-mars.com')[0]
         
-    except BaseException:
-        return None
+    # except BaseException:
+        # return None
 
 
     # Assign columns and set index
@@ -127,10 +128,68 @@ def mars_facts():
     return df.to_html(classes="table table-striped")
 
 
+
+
+def mars_hemispheres(browser):
+
+    def init_browser():
+        executable_path = {'executable_path': ChromeDriverManager().install()}
+        return Browser('chrome', **executable_path, headless=False)
+    
+    browser = init_browser()
+    url = 'https://marshemispheres.com/'
+    browser.visit(url)
+    
+    hemisphere_image_urls = []
+
+    # Set up the soup object
+    html = browser.html
+    hemi_soup = soup(html, 'html.parser')
+
+    # Find (almost) all h3 tags
+    main = hemi_soup.find_all('h3')[0:4]
+
+    # Iterate over the h3 tags in the soup object and pull out the titles and image links
+    for hemi in main:
+        hemispheres = {}
+        
+        # Click on the link for each hemishphere
+        page = browser.find_by_text(hemi.text)
+        page.click()
+        
+        # Create a soup object for the new page
+        html = browser.html
+        new_soup = soup(html, 'html.parser')
+        
+        # Find the Div with class downloads
+        section = new_soup.find('div', class_='downloads')
+        
+        # Find and pull the image and create a full URL for it
+        img_section = section.find('a', target='_blank')
+        href = img_section['href']
+        img_url = f'https://marshemispheres.com/{href}'
+        
+        # Find and pull the title
+        pretitle = new_soup.find('div', class_='cover')
+        title = pretitle.find('h2').get_text()
+        
+        # Add the img and url to the dictionary
+        hemispheres['URL'] = img_url
+        hemispheres['Title'] = title
+        
+        # Append the dict to the list
+        hemisphere_image_urls.append(hemispheres)
+        
+        # Go back to the original page
+        browser.back()
+
+
+    return hemisphere_image_urls
+
+
+
 if __name__ == "__main__":
 
     # If running as script, print scraped data
     print(scrape_all())
-
-
 
